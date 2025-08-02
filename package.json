@@ -25,6 +25,7 @@
     "tailwind-merge": "^2.5.5",
     "zod": "^3.24.1"
   },
+  "_note": "Forcing Vercel to rebuild properly"
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^18",
