@@ -1,0 +1,52 @@
+{
+  "name": "autodrop-platform-v2",
+  "description": "Premium Islamic clothing marketplace with AI-powered discovery and dropshipping automation",
+  "homepage": "https://autodropplatform.shop",
+  "topics": [
+    "nextjs",
+    "ecommerce",
+    "dropshipping",
+    "stripe",
+    "aliexpress",
+    "islamic-clothing",
+    "marketplace",
+    "ai-powered",
+    "typescript",
+    "tailwindcss"
+  ],
+  "private": false,
+  "has_issues": true,
+  "has_projects": true,
+  "has_wiki": false,
+  "has_pages": true,
+  "has_downloads": true,
+  "default_branch": "main",
+  "allow_squash_merge": true,
+  "allow_merge_commit": false,
+  "allow_rebase_merge": true,
+  "allow_auto_merge": true,
+  "delete_branch_on_merge": true,
+  "allow_update_branch": true,
+  "use_squash_pr_title_as_default": true,
+  "squash_merge_commit_title": "PR_TITLE",
+  "squash_merge_commit_message": "PR_BODY",
+  "merge_commit_title": "PR_TITLE",
+  "merge_commit_message": "PR_BODY",
+  "archived": false,
+  "disabled": false,
+  "visibility": "public",
+  "security_and_analysis": {
+    "secret_scanning": {
+      "status": "enabled"
+    },
+    "secret_scanning_push_protection": {
+      "status": "enabled"
+    },
+    "dependabot_security_updates": {
+      "status": "enabled"
+    },
+    "secret_scanning_validity_checks": {
+      "status": "enabled"
+    }
+  }
+}

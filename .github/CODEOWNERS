@@ -1,0 +1,59 @@
+# Global code owners
+* @repository-owner @lead-developer
+
+# Frontend components
+/components/ @frontend-team @ui-ux-team
+/app/ @frontend-team
+/styles/ @ui-ux-team
+
+# Backend API routes
+/app/api/ @backend-team @security-team
+
+# Payment integration
+/app/api/stripe/ @backend-team @security-team @payment-specialist
+/components/stripe-* @backend-team @payment-specialist
+/lib/stripe* @backend-team @payment-specialist
+
+# AliExpress integration
+/app/api/aliexpress/ @backend-team @integration-team
+/lib/aliexpress* @backend-team @integration-team
+
+# Security sensitive files
+/.env* @security-team @repository-owner
+/lib/auth* @security-team
+/middleware* @security-team
+
+# Configuration files
+/next.config* @devops-team @repository-owner
+/package.json @devops-team @repository-owner
+/tsconfig.json @devops-team @frontend-team
+/tailwind.config* @ui-ux-team @frontend-team
+
+# CI/CD and deployment
+/.github/ @devops-team @repository-owner
+/vercel.json @devops-team
+/.vercel/ @devops-team
+
+# Documentation
+/README.md @documentation-team @repository-owner
+/docs/ @documentation-team
+/MIGRATION_STRATEGY.md @devops-team @repository-owner
+
+# Database and migrations
+/lib/db* @backend-team @database-team
+/prisma/ @backend-team @database-team
+/migrations/ @backend-team @database-team
+
+# Testing
+/tests/ @qa-team @backend-team @frontend-team
+/__tests__/ @qa-team @backend-team @frontend-team
+*.test.* @qa-team
+*.spec.* @qa-team
+
+# Context and state management
+/context/ @frontend-team @architecture-team
+/hooks/ @frontend-team
+
+# Utility functions
+/lib/utils* @backend-team @frontend-team
+/lib/types* @backend-team @frontend-team

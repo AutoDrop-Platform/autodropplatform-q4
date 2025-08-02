@@ -1,0 +1,93 @@
+{
+  "deployment_checklist": {
+    "pre_deployment": [
+      {
+        "task": "Create Stripe Live Account",
+        "description": "Sign up for Stripe and get live API keys",
+        "status": "pending",
+        "priority": "critical"
+      },
+      {
+        "task": "Set Environment Variables",
+        "description": "Configure all required environment variables in Vercel",
+        "status": "pending",
+        "priority": "critical"
+      },
+      {
+        "task": "Configure Webhooks",
+        "description": "Set up Stripe webhooks pointing to your live domain",
+        "status": "pending",
+        "priority": "critical"
+      },
+      {
+        "task": "Test Payment Flow",
+        "description": "Test complete payment process with live Stripe keys",
+        "status": "pending",
+        "priority": "high"
+      }
+    ],
+    "deployment": [
+      {
+        "task": "Deploy to Vercel",
+        "description": "Deploy the application to production",
+        "status": "pending",
+        "priority": "critical"
+      },
+      {
+        "task": "Configure Custom Domain",
+        "description": "Set up autodropplatform.shop domain",
+        "status": "pending",
+        "priority": "high"
+      },
+      {
+        "task": "SSL Certificate",
+        "description": "Ensure HTTPS is properly configured",
+        "status": "pending",
+        "priority": "critical"
+      }
+    ],
+    "post_deployment": [
+      {
+        "task": "Test Live Payments",
+        "description": "Make test purchases with real cards",
+        "status": "pending",
+        "priority": "critical"
+      },
+      {
+        "task": "Verify Charity Donations",
+        "description": "Confirm charity donation calculations work",
+        "status": "pending",
+        "priority": "high"
+      },
+      {
+        "task": "Monitor Error Logs",
+        "description": "Check Vercel and Stripe logs for issues",
+        "status": "pending",
+        "priority": "medium"
+      }
+    ]
+  },
+  "stripe_live_setup": {
+    "steps": [
+      "1. Go to https://dashboard.stripe.com",
+      "2. Complete business verification",
+      "3. Add bank account for payouts",
+      "4. Get live API keys from API section",
+      "5. Set up webhook endpoint: https://autodropplatform.shop/api/stripe/webhook",
+      "6. Enable required webhook events: checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed"
+    ]
+  },
+  "vercel_deployment": {
+    "environment_variables": {
+      "STRIPE_SECRET_KEY": "Your live Stripe secret key",
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "Your live Stripe publishable key",
+      "STRIPE_WEBHOOK_SECRET": "Your webhook endpoint secret",
+      "NEXT_PUBLIC_SITE_URL": "https://autodropplatform.shop"
+    },
+    "build_settings": {
+      "framework": "Next.js",
+      "build_command": "npm run build",
+      "output_directory": ".next"
+    }
+  }
+}
