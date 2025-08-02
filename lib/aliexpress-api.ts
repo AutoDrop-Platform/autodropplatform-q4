@@ -1,52 +1,15 @@
-const APP_KEY = process.env.ALIEXPRESS_APP_KEY!;
-const APP_SECRET = process.env.ALIEXPRESS_APP_SECRET!;
+import axios from "axios";
 
-export const aliexpressAPI = {
-  getCategories: async () => {
-    const res = await fetch("https://ali-express1.p.rapidapi.com/categories", {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": APP_KEY,
-        "X-RapidAPI-Host": "ali-express1.p.rapidapi.com"
-      }
-    });
+const BASE_URL = "https://ali-express1.p.rapidapi.com";
 
-    if (!res.ok) {
-      throw new Error("Failed to fetch categories from AliExpress API");
-    }
+const RAPID_API_KEY = process.env.ALIREXPRESS_API_KEY!;
+const RAPID_API_HOST = "ali-express1.p.rapidapi.com";
 
-    return res.json();
+// ✅ Create and export the configured Axios instance
+export const aliexpressAPI = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "X-RapidAPI-Key": RAPID_API_KEY,
+    "X-RapidAPI-Host": RAPID_API_HOST,
   },
-
-  getProductById: async (id: string) => {
-    const res = await fetch(`https://ali-express1.p.rapidapi.com/product/${id}`, {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": APP_KEY,
-        "X-RapidAPI-Host": "ali-express1.p.rapidapi.com"
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch product with ID: ${id}`);
-    }
-
-    return res.json();
-  },
-
-  searchProducts: async (query: string) => {
-    const res = await fetch(`https://ali-express1.p.rapidapi.com/search?query=${encodeURIComponent(query)}`, {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": APP_KEY,
-        "X-RapidAPI-Host": "ali-express1.p.rapidapi.com"
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to search for products with query: ${query}`);
-    }
-
-    return res.json();
-  }
-};
+});
