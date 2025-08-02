@@ -1,178 +1,99 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { stripe, CHARITY_ORGANIZATIONS } from "@/lib/stripe"
+import Stripe from "stripe"
 import { headers } from "next/headers"
+import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-06-20",
+})
 
-export async function POST(request: NextRequest) {
-  const body = await request.text()
-  const signature = headers().get("stripe-signature")!
+export async function POST(req: Request) {
+  const body = await req.text()
+  const signature = headers().get("Stripe-Signature") as string
 
-  let event: any
-
-  try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-  } catch (err: any) {
-    console.error(`Webhook signature verification failed:`, err.message)
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
-  }
-
-  console.log(`🔔 Stripe webhook received: ${event.type}`)
+  let event: Stripe.Event
 
   try {
-    switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object)
-        break
-
-      case "payment_intent.succeeded":
-        await handlePaymentSucceeded(event.data.object)
-        break
-
-      case "payment_intent.payment_failed":
-        await handlePaymentFailed(event.data.object)
-        break
-
-      case "invoice.payment_succeeded":
-        await handleInvoicePaymentSucceeded(event.data.object)
-        break
-
-      default:
-        console.log(`Unhandled event type: ${event.type}`)
-    }
-
-    return NextResponse.json({ received: true })
-  } catch (error) {
-    console.error("Webhook handler error:", error)
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 })
-  }
-}
-
-async function handleCheckoutCompleted(session: any) {
-  console.log("✅ Checkout completed:", session.id)
-
-  const charityDonation = Number.parseFloat(session.metadata?.charity_donation || "0")
-  const charityOrg = session.metadata?.charity_organization || CHARITY_ORGANIZATIONS.BALSAMAT_AL_KHAIR.name
-
-  console.log(`💝 Processing charity donation: $${charityDonation} to ${charityOrg}`)
-
-  // 1. Save order to database
-  try {
-    await sql`
-      INSERT INTO orders (
-        id, 
-        customer_email, 
-        amount_total, 
-        currency, 
-        status, 
-        payment_status, 
-        charity_donation, 
-        charity_organization, 
-        metadata
-      ) VALUES (
-        ${session.id},
-        ${session.customer_details?.email},
-        ${session.amount_total},
-        ${session.currency},
-        ${session.status},
-        ${session.payment_status},
-        ${Math.round(Number.parseFloat(session.metadata?.charity_donation || "0") * 100)},
-        ${session.metadata?.charity_organization},
-        ${session.metadata ? JSON.stringify(session.metadata) : null}
-      )
-    `
-    console.log(`📦 Order ${session.id} saved to database.`)
-  } catch (error) {
-    console.error(`🚨 Error saving order ${session.id} to database:`, error)
-    // If the webhook fails, Stripe will retry.
-    // It's important to handle this gracefully.
-    return NextResponse.json({ error: "Failed to save order" }, { status: 500 })
+    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+  } catch (error: any) {
+    console.error("Webhook signature verification failed.", error.message)
+    return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 })
   }
 
-  // 2. Send confirmation email
-  await sendOrderConfirmationEmail(session)
+  switch (event.type) {
+    case "checkout.session.completed":
+      const session = event.data.object as Stripe.Checkout.Session
 
-  // 3. Process charity donation
-  await processCharityDonation(charityDonation, charityOrg, session)
+      // Retrieve line items to get product details
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+        expand: ["data.price.product"],
+      })
 
-  // 4. Update inventory
-  // 5. Notify seller
+      // Extract product IDs and names from line items
+      const products = lineItems.data.map((item) => ({
+        id: (item.price?.product as Stripe.Product)?.id,
+        name: (item.price?.product as Stripe.Product)?.name,
+        quantity: item.quantity,
+        unit_amount: item.price?.unit_amount,
+      }))
 
-  console.log(`✅ Order ${session.id} processed successfully`)
-}
+      // Placeholder for charity donation and organization (if applicable)
+      // You would typically get this from metadata on the session or product
+      const charityDonation = session.metadata?.charity_donation
+        ? Number.parseInt(session.metadata.charity_donation)
+        : null
+      const charityOrganization = session.metadata?.charity_organization || null
 
-async function handlePaymentSucceeded(paymentIntent: any) {
-  console.log("💳 Payment succeeded:", paymentIntent.id)
+      try {
+        await sql`
+          INSERT INTO orders (
+            id,
+            email,
+            amount_total,
+            currency,
+            status,
+            charity_donation,
+            charity_organization,
+            created_at
+          ) VALUES (
+            ${session.id},
+            ${session.customer_details?.email},
+            ${session.amount_total},
+            ${session.currency},
+            ${session.status},
+            ${charityDonation},
+            ${charityOrganization},
+            NOW()
+          );
+        `
 
-  const charityDonation = Number.parseFloat(paymentIntent.metadata?.charity_donation || "0")
+        // For each product in the order, insert into a line_items table (if you had one)
+        // This example assumes a single order table for simplicity, but for multiple products
+        // a separate line_items table linked by order_id would be necessary.
+        // For now, we'll just log the products.
+        console.log("Products in order:", products)
 
-  if (charityDonation > 0) {
-    console.log(`💝 Payment includes charity donation: $${charityDonation}`)
-  }
-}
+        // Placeholder for sending order confirmation email
+        await sendOrderConfirmationEmail(session.customer_details?.email, session.id, products)
 
-async function handlePaymentFailed(paymentIntent: any) {
-  console.log("❌ Payment failed:", paymentIntent.id)
-
-  // Here you would:
-  // 1. Log the failure
-  // 2. Send failure notification
-  // 3. Update order status
-  // 4. Potentially retry payment
-}
-
-async function handleInvoicePaymentSucceeded(invoice: any) {
-  console.log("📄 Invoice payment succeeded:", invoice.id)
-
-  // Process invoice-based payments
-}
-
-async function processCharityDonation(amount: number, organization: string, session: any) {
-  // In a real implementation, you would:
-  // 1. Transfer funds to charity organization
-  // 2. Record donation in database
-  // 3. Generate tax receipt
-  // 4. Send donation confirmation
-
-  console.log(`🏦 Processing $${amount} donation to ${organization}`)
-
-  // Simulate donation processing
-  const donationRecord = {
-    id: `donation_${Date.now()}`,
-    amount,
-    organization,
-    sessionId: session.id,
-    customerEmail: session.customer_email,
-    timestamp: new Date().toISOString(),
-    status: "completed",
-  }
-
-  console.log("💝 Donation processed:", donationRecord)
-
-  return donationRecord
-}
-
-async function sendOrderConfirmationEmail(session: any) {
-  // In a real implementation, you would send an email using:
-  // - SendGrid
-  // - AWS SES
-  // - Resend
-  // - Nodemailer
-
-  console.log(`📧 Sending confirmation email to ${session.customer_email}`)
-
-  const emailData = {
-    to: session.customer_email,
-    subject: "Order Confirmation - AutoDrop Islamic Marketplace",
-    template: "order_confirmation",
-    data: {
-      orderNumber: session.id,
-      charityDonation: session.metadata?.charity_donation,
-      charityOrganization: session.metadata?.charity_organization,
-      total: (session.amount_total / 100).toFixed(2),
-    },
+        console.log(`Order ${session.id} saved to database.`)
+      } catch (dbError) {
+        console.error("Error saving order to database:", dbError)
+        return new NextResponse("Database Error", { status: 500 })
+      }
+      break
+    default:
+      console.log(`Unhandled event type ${event.type}`)
   }
 
-  console.log("📧 Email queued:", emailData)
+  return new NextResponse("Received", { status: 200 })
+}
+
+async function sendOrderConfirmationEmail(email: string | undefined, orderId: string, products: any[]) {
+  if (!email) {
+    console.warn("No email provided for order confirmation.")
+    return
+  }
+  console.log(`Sending order confirmation email to ${email} for order ${orderId} with products:`, products)
+  // In a real application, you would integrate with an email service here (e.g., Resend, SendGrid)
 }
