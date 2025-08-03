@@ -1,14 +1,15 @@
-import axios from "axios";
+// lib/aliexpress-api.ts
+export const aliexpressAPI = {
+  async searchProducts(query: string) {
+    const res = await fetch(`https://ali-express1.p.rapidapi.com/search?query=${query}`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.ALIEXPRESS_APP_KEY || '',
+        'X-RapidAPI-Host': 'ali-express1.p.rapidapi.com',
+      },
+    });
 
-const BASE_URL = "https://ali-express1.p.rapidapi.com";
-
-const RAPID_API_KEY = process.env.ALIREXPRESS_API_KEY!;
-const RAPID_API_HOST = "ali-express1.p.rapidapi.com";
-
-export const aliexpressAPI = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "X-RapidAPI-Key": RAPID_API_KEY,
-    "X-RapidAPI-Host": RAPID_API_HOST,
+    const data = await res.json();
+    return data;
   },
-});
+};
