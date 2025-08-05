@@ -1,0 +1,6 @@
+Unknown subcommand responses.create.
+Usage: openai <subcommand>
+
+Subcommands:
+  migrate  Run migrations to update to the latest major SDK version
+
