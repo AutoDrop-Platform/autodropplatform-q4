@@ -1,8 +1,5 @@
 import axios from 'axios';
 
-const APP_KEY = '517196';
-const APP_SECRET = 'BZ4YOIstoyodeOMiMpOxqsJuR7zEDfG';
-
 const instance = axios.create({
   baseURL: 'https://ali-express1.p.rapidapi.com',
   headers: {
@@ -12,26 +9,24 @@ const instance = axios.create({
 });
 
 export const aliexpressAPI = {
-  // جلب تفاصيل المنتج بناءً على ID
-  getProductDetails: async (id) => {
+  getProductDetails: async (productId) => {
     try {
-      const res = await instance.get('/product/details', {
-        params: { productId: id },
+      const response = await instance.get('/product/details', {
+        params: { productId }
       });
-      return res.data;
-    } catch (err) {
-      console.error('AliExpress getProductDetails error:', err);
+      return response.data;
+    } catch (error) {
+      console.error('getProductDetails error:', error);
       return null;
     }
   },
 
-  // جلب قائمة التصنيفات (تجريبي)
   getCategories: async () => {
     try {
-      const res = await instance.get('/categories');
-      return res.data;
-    } catch (err) {
-      console.error('AliExpress getCategories error:', err);
+      const response = await instance.get('/categories');
+      return response.data;
+    } catch (error) {
+      console.error('getCategories error:', error);
       return [];
     }
   }
