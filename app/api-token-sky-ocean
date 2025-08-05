@@ -1,1 +1,12 @@
 
+import { deepinfra } from "@ai-sdk/deepinfra";
+import { streamtext } from "ai";
+
+const result = streamText({
+  model: deepinfra("deepseek-ai/DeepSeek-R1-Turbo"),
+  prompt: "Invent a new holiday and describe its traditions.",
+});
+
+for await (const textPart of result.textStream) {
+  process.stdout.write(textPart);
+}
