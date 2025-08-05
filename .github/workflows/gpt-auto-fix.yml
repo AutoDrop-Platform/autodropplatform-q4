@@ -1,7 +1,7 @@
 name: GPT Auto Fix
 
 on:
-  workflow_dispatch: {}   # تشغيل يدوي
+  workflow_dispatch: # تشغيل يدوي
 
 jobs:
   code-review:
@@ -26,20 +26,18 @@ jobs:
 
       - name: Install tools
         run: |
-          npm i -g openai@1 eslint @eslint/js typescript
+          npm i -g openai eslint @eslint/js typescript
 
-      # ✅ فعلّي إصلاحات حقيقية تلقائياً
       - name: ESLint --fix
-        run: npx eslint . --ext .ts,.tsx,.js --fix || true
+        run: npx eslint --ext .ts,.tsx,.js --fix || true
 
-      # ✅ استدعاء OpenAI (تقرير/ملاحظات فقط)
       - name: Ask OpenAI for remaining fixes
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           npx openai responses.create \
             -m gpt-4o-mini \
-            -i "Review this repo and list the top code issues that still need manual fixes. Prefer TypeScript/Next.js best practices." \
+            -i "Review this repo and list the top code issues that still need manual fixes. Prefer TypeScript/ESLint best practices." \
             > openai-report.json || true
 
       - name: Commit changes (if any)
@@ -47,6 +45,7 @@ jobs:
           git add -A
           if ! git diff --cached --quiet; then
             git commit -m "chore: ESLint auto-fix + OpenAI report"
+            git pull origin main --rebase
             git push
           else
             echo "No changes to commit."
