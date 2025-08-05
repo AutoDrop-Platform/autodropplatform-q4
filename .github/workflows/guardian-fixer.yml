@@ -1,0 +1,37 @@
+name: Guardian Fixer
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Guardian Fixer
+        run: npx tsx app/utils/GuardianFixer.ts
+
+      - name: Commit & Push changes
+        run: |
+          git config --global user.name 'Auto Fixer Bot'
+          git config --global user.email 'autofixer@autodropplatform.shop'
+          git add .
+          git commit -m '🤖 GuardianFixer: Auto-fixed code'
+          git push
+        continue-on-error: true
