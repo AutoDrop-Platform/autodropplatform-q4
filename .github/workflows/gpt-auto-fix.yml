@@ -23,8 +23,6 @@ jobs:
           npm install -g openai
 
       - name: Run GPT Code Assistant
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           npx openai api chat.completions.create \
             -m gpt-4 \
@@ -37,5 +35,7 @@ jobs:
           git config --global user.email "autobot@autodropplatform.shop"
           git config --global user.name "Smart Auto Bot"
           git add .
+          git commit -m "🔧 إصلاحات تلقائية من GPT-4" || echo "No changes"
+          git push || echo "No push"
           git commit -m "🔧 إصلاحات تلقائية من GPT-4" || echo "No changes"
           git push || echo "No push"
