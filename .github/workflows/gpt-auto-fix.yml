@@ -1,41 +1,53 @@
-name: AutoGPT-Coder
+name: GPT Auto Fix
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch: {}   # تشغيل يدوي
 
 jobs:
   code-review:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    permissions:
+      contents: write
+      pull-requests: write
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set git identity
+        run: |
+          git config --global user.name "autobot"
+          git config --global user.email "autobot@autodropplatform.shop"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install OpenAI CLI
+      - name: Install tools
         run: |
-          npm install -g openai
+          npm i -g openai@1 eslint @eslint/js typescript
 
-      - name: Run GPT Code Assistant
-        run: |
-          npx openai api chat.completions.create \
-            -m gpt-4 \
-            -t "راجع كود المشروع وعدل المشاكل إن وجدت" \
-            -i ./src \
-            --temperature 0.3
+      # ✅ فعلّي إصلاحات حقيقية تلقائياً
+      - name: ESLint --fix
+        run: npx eslint . --ext .ts,.tsx,.js --fix || true
 
-      - name: Commit changes
+      # ✅ استدعاء OpenAI (تقرير/ملاحظات فقط)
+      - name: Ask OpenAI for remaining fixes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          git config --global user.email "autobot@autodropplatform.shop"
-          git config --global user.name "Smart Auto Bot"
-          git add .
-          git commit -m "🔧 إصلاحات تلقائية من GPT-4" || echo "No changes"
-          git push || echo "No push"
-          git commit -m "🔧 إصلاحات تلقائية من GPT-4" || echo "No changes"
-          git push || echo "No push"
+          npx openai responses.create \
+            -m gpt-4o-mini \
+            -i "Review this repo and list the top code issues that still need manual fixes. Prefer TypeScript/Next.js best practices." \
+            > openai-report.json || true
+
+      - name: Commit changes (if any)
+        run: |
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: ESLint auto-fix + OpenAI report"
+            git push
+          else
+            echo "No changes to commit."
+          fi
