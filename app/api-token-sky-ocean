@@ -10,3 +10,24 @@ const result = streamText({
 for await (const textPart of result.textStream) {
   process.stdout.write(textPart);
 }
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+    baseURL: 'https://api.deepinfra.com/v1/openai',
+    apiKey: process.env.DEEPINFRA_API_KEY ?? '',
+});
+
+async function main() {
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: "Hello" }],
+    model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+  });
+
+  console.log(completion.choices[0].message.content);
+  console.log(completion.usage.prompt_tokens, completion.usage.completion_tokens);
+}
+
+main();
+
+// Hello! It's nice to meet you. Is there something I can help you with, or would you like to chat?
+// 11 25
