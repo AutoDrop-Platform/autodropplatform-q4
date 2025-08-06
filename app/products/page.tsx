@@ -1,131 +1,94 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { useCart } from "@/context/cart-context";
-import { parsePriceToCents } from "@/utils/price";
 
-const KEYWORDS = "electronics";
+import React, { useEffect, useMemo, useState } from "react";
 
-type AliItem = {
-  product_id?: string;
+type RawItem = {
+  productId?: string | number;
+  itemId?: string | number;
+  productTitle?: string;
   title?: string;
-  image?: string;
+  appSalePrice?: string | number;
   price?: string | number;
-  detail_url?: string;
+  productUrl?: string;
+  url?: string;
+  image?: string;
+  productImage?: string;
+  storeName?: string;
+  sellerName?: string;
 };
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<AliItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { addToCart } = useCart();
+type Item = {
+  id: string;
+  title: string;
+  price: string;
+  url: string;
+  image: string;
+  seller?: string;
+};
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(
-          `https://aliexpress-datahub.p.rapidapi.com/item_search_2?keywords=${encodeURIComponent(
-            KEYWORDS
-          )}&page=1`,
-          {
-            method: "GET",
-            headers: {
-              "x-rapidapi-host": "aliexpress-datahub.p.rapidapi.com",
-              "x-rapidapi-key":
-                "a03df765b2msh8412e939d9f05bbp1d82c8jsnf9c97eff2a36",
-            },
-            cache: "no-store",
-          } as RequestInit
-        );
-        const data = await res.json();
-        const list: AliItem[] = Array.isArray(data?.result?.resultList)
-          ? data.result.resultList
-          : [];
-        setProducts(list);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
+const RAPIDAPI_HOST = "aliexpress-datahub.p.rapidapi.com";
+const RAPIDAPI_KEY = "a03df765b2msh8412e939d9f05bbp1d82c8jsnf9c97eff2a36";
 
-  const buyNow = async (p: AliItem) => {
-    const amount = parsePriceToCents(p.price);
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: p.title || "AliExpress Item",
-        image: p.image,
-        amount: amount > 50 ? amount : 500, // حد أدنى 5$
-        currency: "usd",
-      }),
-    });
-    const data = await res.json();
-    if (data?.url) window.location.href = data.url;
-  };
+// عدّل أو أضف كلمات مفتاحية كما تريد
+const KEYWORDS = [
+  "electronics", "smartphone", "smartwatch", "laptop", "gaming",
+  "headphones", "camera", "drones", "tablet", "monitor",
+  "fashion", "shoes", "bags", "watches", "jewelry",
+  "home decor", "kitchen", "coffee", "cleaning", "lighting",
+  "beauty", "makeup", "skincare", "hair", "fragrance",
+  "tools", "power tools", "garden", "outdoor", "fitness",
+  "car accessories", "motorcycle", "camping", "toys", "kids"
+];
 
-  if (loading) return <div className="p-8 text-center">Loading products…</div>;
-  if (!products.length) return <div className="p-8 text-center">No products found.</div>;
-
-  return (
-    <div className="p-6 md:p-10">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6">
-        Products — {KEYWORDS}
-      </h1>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((p, i) => {
-          const priceCents = parsePriceToCents(p.price);
-          const id = String(p.product_id ?? i);
-          return (
-            <div key={id} className="border rounded-lg p-4 shadow-sm">
-              <img
-                src={p.image || "/placeholder.png"}
-                alt={p.title || "Product"}
-                className="w-full h-48 object-cover rounded"
-              />
-              <h2 className="text-base md:text-lg font-semibold mt-3 line-clamp-2">
-                {p.title || "Untitled"}
-              </h2>
-              <div className="mt-2 font-bold">
-                {priceCents ? `$${(priceCents / 100).toFixed(2)}` : "—"}
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <Button
-                  onClick={() =>
-                    addToCart({
-                      id,
-                      name: p.title || "Item",
-                      image: p.image,
-                      priceCents: priceCents || 500,
-                      quantity: 1,
-                    })
-                  }
-                >
-                  Add to Cart
-                </Button>
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => buyNow(p)}
-                >
-                  Buy Now
-                </Button>
-              </div>
-
-              <a
-                href={p.detail_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block underline"
-              >
-                View on AliExpress
-              </a>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+// تطبيع الحقول من API
+function normalizeItem(x: RawItem): Item | null {
+  const id = String(x.productId ?? x.itemId ?? "");
+  const title = x.productTitle ?? x.title ?? "";
+  const url = x.productUrl ?? x.url ?? "";
+  const image = x.productImage ?? x.image ?? "";
+  const rawPrice = String(x.appSalePrice ?? x.price ?? "");
+  const price = rawPrice ? `$${rawPrice}`.replace(/^(\$)?\$/, "$") : "—";
+  const seller = x.storeName ?? x.sellerName ?? undefined;
+  if (!id || !title || !url) return null;
+  return { id, title, url, image, price, seller };
 }
+
+async function fetchByKeyword(keyword: string): Promise<Item[]> {
+  const url =
+    `https://${RAPIDAPI_HOST}/item_search_2?keywords=${encodeURIComponent(keyword)}&page=1&pageSize=20`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "x-rapidapi-host": RAPIDAPI_HOST,
+      "x-rapidapi-key": RAPIDAPI_KEY,
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    // لو واجهت 429 أو غيره؛ رجّع مصفوفة فاضية بدل كراش
+    return [];
+  }
+  const data = await res.json();
+  const list: RawItem[] = data?.result?.resultList ?? data?.data ?? [];
+  return list.map(normalizeItem).filter(Boolean) as Item[];
+}
+
+// تقسيم على دفعات خفيفة لتقليل 429
+async function fetchAllKeywords(keys: string[], batchSize = 4, delayMs = 600) {
+  const all: Item[] = [];
+  for (let i = 0; i < keys.length; i += batchSize) {
+    const slice = keys.slice(i, i + batchSize);
+    const chunk = await Promise.all(slice.map(fetchByKeyword));
+    all.push(...chunk.flat());
+    if (i + batchSize < keys.length) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  // إزالة التكرار حسب id
+  const dedup = new Map<string, Item>();
+  all.forEach((it) => dedup.set(it.id, it));
+  return Array.from(dedup.values());
+}
+
+export default function ProductsPage() {
+  const [items, setItems] = useState<Item
