@@ -1,66 +1,109 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2024-06-20" }) : null;
+export const runtime = "nodejs"; // تأكيد بيئة Node (Stripe لا يعمل على Edge)
 
+const stripeKey = process.env.STRIPE_SECRET_KEY ?? "";
+const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
+
+// أنواع واضحة
 type BodyItem = {
   name: string;
   image?: string;
-  amount: number;   // cents
-  quantity?: number;
+  amount: number;    // بالسنت
+  quantity?: number; // افتراضي 1
 };
+
+type Payload =
+  | {
+      items: BodyItem[];
+      currency?: string;
+    }
+  | {
+      name?: string;
+      image?: string;
+      amount?: number;
+      quantity?: number;
+      currency?: string;
+    };
+
+// توحيد القيمة لتكون سنتات صحيحة وبحد أدنى 50
+function sanitizeAmount(x: unknown): number {
+  const n = typeof x === "number" ? Math.round(x) : 0;
+  return n >= 50 ? n : 50;
+}
 
 export async function POST(req: Request) {
   try {
-    if (!stripe) {
-      return NextResponse.json({ error: "Stripe key missing" }, { status: 500 });
+    if (!stripeKey) {
+      return NextResponse.json(
+        { error: "Stripe key missing" },
+        { status: 500 }
+      );
     }
 
-    const payload = await req.json();
+    const payload = (await req.json()) as Payload;
+    const currency = (payload as any).currency ?? "usd";
 
-    // إذا فيه items[] استخدمها، وإلا استخدم single item (توافقًا مع Buy Now)
-    const items: BodyItem[] = Array.isArray(payload?.items)
-      ? payload.items
-      : [
-          {
-            name: payload?.name || "Product",
-            image: payload?.image,
-            amount:
-              typeof payload?.amount === "number" && payload.amount > 0
-                ? payload.amount
-                : 500,
-            quantity: 1,
-          },
-        ];
+    // تجهيز العناصر: يدعم single item أو items[]
+    let items: BodyItem[] = [];
+    if (Array.isArray((payload as any).items)) {
+      items = ((payload as any).items as BodyItem[])
+        .map((it) => ({
+          name: it.name?.trim() || "Product",
+          image: it.image,
+          amount: sanitizeAmount(it.amount),
+          quantity: it.quantity && it.quantity > 0 ? Math.floor(it.quantity) : 1,
+        }))
+        .filter((it) => Number.isFinite(it.amount) && it.amount >= 50);
+    } else {
+      items = [
+        {
+          name: (payload as any).name?.trim() || "Product",
+          image: (payload as any).image,
+          amount: sanitizeAmount((payload as any).amount),
+          quantity:
+            (payload as any).quantity && (payload as any).quantity > 0
+              ? Math.floor((payload as any).quantity)
+              : 1,
+        },
+      ];
+    }
 
-    const currency = payload?.currency || "usd";
+    if (!items.length) {
+      return NextResponse.json({ error: "No items provided" }, { status: 400 });
+    }
 
     const line_items = items.map((x) => ({
       price_data: {
         currency,
         product_data: {
-          name: x.name || "Product",
+          name: x.name,
           images: x.image ? [x.image] : [],
         },
-        unit_amount: x.amount > 50 ? x.amount : 500,
+        unit_amount: x.amount, // بالسنت
       },
-      quantity: x.quantity && x.quantity > 0 ? x.quantity : 1,
+      quantity: x.quantity ?? 1,
     }));
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://autodropplatform.shop";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://autodropplatform.shop";
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card"],
+      // لا حاجة لتحديد payment_method_types مع الإصدارات الحديثة
       line_items,
       success_url: `${baseUrl}/checkout/success`,
       cancel_url: `${baseUrl}/checkout/cancel`,
+      // لو بتستخدم Stripe Tax لاحقًا:
+      // automatic_tax: { enabled: true },
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    console.error("Checkout error:", e);
-    return NextResponse.json({ error: e?.message || "Checkout failed" }, { status: 500 });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Checkout failed (unknown error)";
+    console.error("Checkout error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
