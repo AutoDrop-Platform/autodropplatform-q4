@@ -1,66 +1,80 @@
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
+"use client";
 
-const stripeKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2024-06-20" }) : null;
+import { useCart } from "@/context/cart-context";
+import { Button } from "@/components/ui/button";
 
-type BodyItem = {
-  name: string;
-  image?: string;
-  amount: number;   // cents
-  quantity?: number;
-};
+export default function CartPage() {
+  const { items, removeFromCart, updateQty, totalCents, clearCart } = useCart();
 
-export async function POST(req: Request) {
-  try {
-    if (!stripe) {
-      return NextResponse.json({ error: "Stripe key missing" }, { status: 500 });
-    }
-
-    const payload = await req.json();
-
-    // إذا فيه items[] استخدمها، وإلا استخدم single item (توافقًا مع Buy Now)
-    const items: BodyItem[] = Array.isArray(payload?.items)
-      ? payload.items
-      : [
-          {
-            name: payload?.name || "Product",
-            image: payload?.image,
-            amount:
-              typeof payload?.amount === "number" && payload.amount > 0
-                ? payload.amount
-                : 500,
-            quantity: 1,
-          },
-        ];
-
-    const currency = payload?.currency || "usd";
-
-    const line_items = items.map((x) => ({
-      price_data: {
-        currency,
-        product_data: {
-          name: x.name || "Product",
-          images: x.image ? [x.image] : [],
-        },
-        unit_amount: x.amount > 50 ? x.amount : 500,
-      },
-      quantity: x.quantity && x.quantity > 0 ? x.quantity : 1,
-    }));
-
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://autodropplatform.shop";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items,
-      success_url: `${baseUrl}/checkout/success`,
-      cancel_url: `${baseUrl}/checkout/cancel`,
+  const checkout = async () => {
+    if (!items.length) return;
+    const payload = {
+      items: items.map((x) => ({
+        name: x.name,
+        image: x.image,
+        amount: x.priceCents,
+        quantity: x.quantity,
+      })),
+      currency: "usd",
+    };
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+    const data = await res.json();
+    if (data?.url) window.location.href = data.url;
+  };
 
-    return NextResponse.json({ url: session.url });
-  } catch (e: any) {
-    console.error("Checkout error:", e);
-    return NextResponse.json({ error: e?.message || "Checkout failed" }, { status: 500 });
-  }
+  if (!items.length)
+    return <div className="p-10 text-center">Your cart is empty.</div>;
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Your Cart</h1>
+
+      <div className="space-y-4">
+        {items.map((x) => (
+          <div key={x.id} className="border rounded p-4 flex items-center gap-4">
+            <img
+              src={x.image || "/placeholder.png"}
+              alt={x.name}
+              className="w-20 h-20 object-cover rounded"
+            />
+            <div className="flex-1">
+              <div className="font-semibold">{x.name}</div>
+              <div className="text-sm text-gray-600">
+                ${(x.priceCents / 100).toFixed(2)}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Button onClick={() => updateQty(x.id, x.quantity - 1)}>-</Button>
+                <span>{x.quantity}</span>
+                <Button onClick={() => updateQty(x.id, x.quantity + 1)}>+</Button>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold">
+                ${((x.priceCents * x.quantity) / 100).toFixed(2)}
+              </div>
+              <Button className="mt-2" onClick={() => removeFromCart(x.id)}>
+                Remove
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-xl font-bold">
+          Total: ${(totalCents / 100).toFixed(2)}
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={clearCart}>Clear</Button>
+          <Button className="bg-green-600 hover:bg-green-700" onClick={checkout}>
+            Checkout
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
