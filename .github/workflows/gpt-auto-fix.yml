@@ -2,59 +2,130 @@ name: GPT Auto Fix
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   schedule:
-    - cron: "0 0 * * *" # تشغيل يومي عند منتصف الليل UTC
-  workflow_dispatch: # تشغيل يدوي عند الحاجة
+    - cron: "0 0 * * *"   # تشغيل يومي 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: gpt-auto-fix-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
 
 jobs:
   auto-fix:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GH_TOKEN }}
-
-      - name: Set git identity
-        run: |
-          git config --global user.name "autobot"
-          git config --global user.email "autobot@autodropplatform.shop"
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install ESLint and dependencies
+      - name: Detect package manager
+        id: pm
         run: |
-          npm install --save-dev eslint @eslint/js typescript
-          npm install -g openai
+          if [ -f pnpm-lock.yaml ]; then
+            echo "name=pnpm" >> $GITHUB_OUTPUT
+          elif [ -f yarn.lock ]; then
+            echo "name=yarn" >> $GITHUB_OUTPUT
+          else
+            echo "name=npm" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Run ESLint auto-fix
-        run: npx eslint --ext .js,.ts,.tsx --fix || true
+      - name: Enable corepack (for pnpm/yarn)
+        run: corepack enable
 
-      - name: Ask OpenAI for code improvements
+      - name: Install deps
+        run: |
+          PM="${{ steps.pm.outputs.name }}"
+          if [ "$PM" = "pnpm" ]; then
+            pnpm install --frozen-lockfile || pnpm install
+          elif [ "$PM" = "yarn" ]; then
+            yarn install --frozen-lockfile || yarn install
+          else
+            npm ci || npm i
+          fi
+
+      - name: Lint (auto-fix)
+        run: |
+          npx --yes eslint . --fix || true
+          npx --yes prettier . --write || true
+
+      - name: Type check (if TS present)
+        run: |
+          if [ -f tsconfig.json ]; then npx --yes tsc -p . --noEmit || true; fi
+
+      - name: Build (smoke)
+        run: |
+          PM="${{ steps.pm.outputs.name }}"
+          if [ "$PM" = "pnpm" ]; then pnpm run -s build || true
+          elif [ "$PM" = "yarn" ]; then yarn -s build || true
+          else npm run -s build || true
+          fi
+
+      # اختياري: سكربت الذكاء الاصطناعي إن كان موجود
+      - name: Run AI fix script (optional)
+        if: hashFiles('.github/scripts/ai-fix.mjs') != ''
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          npx openai responses.create \
-            -m gpt-4o-mini \
-            -i "Analyze and fix remaining code issues using TypeScript/ESLint best practices." \
-            > openai-report.json || true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/ai-fix.mjs || true
 
-      - name: Commit and Push changes
+      - name: Commit changes (if any)
         run: |
-          git add -A
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: ESLint auto-fix + OpenAI suggestions"
-            git pull origin main --rebase
-            git push origin main
+          git config user.name "Smart Auto Bot"
+          git config user.email "autodrop.platform@gmail.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "Smart AI: automated code fix 🛠"
           else
-            echo "No changes to commit."
+            echo "No changes to commit"
           fi
+
+      - name: Push to main (on push/schedule/manual)
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -n "$(git log origin/main..HEAD)" ]; then
+            git push origin HEAD:main
+          else
+            echo "Nothing new to push"
+          fi
+
+      - name: Push to PR branch & open PR (on PR events)
+        if: github.event_name == 'pull_request'
+        run: |
+          BR="gpt-auto-fix/${{ github.run_id }}"
+          git checkout -b "$BR" || true
+          if [ -n "$(git log origin/${{ github.head_ref }}..HEAD)" ]; then
+            git push origin "$BR"
+            gh pr create --base main --head "$BR" --title "Smart AI: automated fixes" --body "Auto-fix from workflow" || true
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # اختياري: تريغر نشر Vercel إذا عندك Deploy Hook
+      - name: Trigger Vercel Deploy Hook (optional)
+        if: secrets.VERCEL_DEPLOY_HOOK_URL != ''
+        run: curl -s -X POST "$VERCEL_DEPLOY_HOOK_URL" || true
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+
+      - name: Summary
+        run: |
+          echo "✅ GPT Auto Fix finished." >> $GITHUB_STEP_SUMMARY
+          echo "- Event: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- PM: ${{ steps.pm.outputs.name }}" >> $GITHUB_STEP_SUMMARY
