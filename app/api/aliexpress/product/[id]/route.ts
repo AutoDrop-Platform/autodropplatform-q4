@@ -12,7 +12,9 @@ export async function GET(
       `https://aliexpress-datahub.p.rapidapi.com/item_detail_2?itemId=${productId}`,
       {
         headers: {
-          "x-rapidapi-key": process.env.RAPIDAPI_KEY || "a03df765b2msh8412e939d9f05bbp1d82c8jsnf9c97eff2a36",
+          "x-rapidapi-key":
+            process.env.RAPIDAPI_KEY ||
+            "a03df765b2msh8412e939d9f05bbp1d82c8jsnf9c97eff2a36",
           "x-rapidapi-host": "aliexpress-datahub.p.rapidapi.com",
         },
       }
