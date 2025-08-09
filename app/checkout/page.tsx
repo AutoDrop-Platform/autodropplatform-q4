@@ -22,17 +22,21 @@ export default function CheckoutPage() {
     phone: "",
   });
 
-  const totalPrice = getTotalPrice();
-  const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100;
+  const totalPrice = getTotalPrice()
+  const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100
   type CartItem = {
-    id: string | number;
-    quantity: number;
-    price: number;
-    title: string;
-    image?: string;
-    category?: string;
-  };
-  const itemCount = items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0);
+    id: string | number
+    quantity: number
+    price: number
+    title: string
+    image?: string
+    category?: string
+  }
+
+  const itemCount = items.reduce(
+    (sum: number, item: CartItem) => sum + item.quantity,
+    0
+  )
 
   if (items.length === 0) {
     return (
