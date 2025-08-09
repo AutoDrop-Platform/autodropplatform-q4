@@ -1,30 +1,30 @@
-"use client"
+"use client";
 
-import { useCart } from "@/context/cart-context"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import StripeCheckoutButton from "@/components/stripe-checkout-button"
-import { ShoppingBag, Heart, Shield, Truck, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { useState } from "react"
+import { useCart } from "@/context/cart-context";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import StripeCheckoutButton from "@/components/stripe-checkout-button";
+import { ShoppingBag, Heart, Shield, Truck, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { useState } from "react";
 
 export default function CheckoutPage() {
-  const { items, updateQuantity, removeFromCart, getTotalPrice } = useCart()
+  const { items, updateQuantity, removeFromCart, getTotalPrice } = useCart();
   const [customerInfo, setCustomerInfo] = useState({
     email: "",
     firstName: "",
     lastName: "",
     phone: "",
-  })
+  });
 
-  const totalPrice = getTotalPrice()
-  const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalPrice = getTotalPrice();
+  const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100;
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   if (items.length === 0) {
     return (
@@ -41,7 +41,7 @@ export default function CheckoutPage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -257,5 +257,5 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
