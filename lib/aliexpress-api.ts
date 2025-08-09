@@ -29,5 +29,11 @@ export const aliexpressAPI = {
       console.error('getCategories error:', error);
       return [];
     }
+  },
+
+  validateProductIds: async (productIds: string[]) => {
+    // تحقق من المنتجات عبر البحث أو أي منطق مناسب
+    // هنا نعيد كل المعرفات كما هي (يمكنك تخصيصها لاحقاً)
+    return productIds;
   }
 };
