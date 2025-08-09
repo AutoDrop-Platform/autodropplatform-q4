@@ -6,7 +6,7 @@ interface PageProps {
 
 async function fetchProduct(id: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/aliexpress/product/${id}`,
+    `/api/aliexpress/product/${id}`,
     { cache: "no-store" }
   );
 

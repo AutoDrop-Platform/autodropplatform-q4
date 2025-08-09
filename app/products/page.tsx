@@ -95,35 +95,75 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // بيانات وهمية للعرض عند الفشل
+  const dummyItems: Item[] = [
+    {
+      id: "dummy-1",
+      title: "عباية نسائية فاخرة",
+      price: "$49.99",
+      url: "#",
+      image: "https://via.placeholder.com/150x200?text=Abaya",
+      seller: "متجر العبايات"
+    },
+    {
+      id: "dummy-2",
+      title: "ثوب رجالي أصلي",
+      price: "$39.99",
+      url: "#",
+      image: "https://via.placeholder.com/150x200?text=Thobe",
+      seller: "متجر الثياب"
+    }
+  ];
+
   const keywords = useMemo(() => KEYWORDS.join(","), []);
 
-  useEffect(() => {
+  const fetchProducts = () => {
     setLoading(true);
+    setError(null);
     fetchAllKeywords(KEYWORDS)
-      .then(setItems)
+      .then((data) => {
+        if (data.length === 0) {
+          setError("لا توجد نتائج من المصدر، سيتم عرض منتجات تجريبية.");
+          setItems(dummyItems);
+        } else {
+          setItems(data);
+        }
+      })
       .catch((e) => {
-        setError("فشل في تحميل البيانات");
+        setError("فشل في تحميل البيانات من المصدر، سيتم عرض منتجات تجريبية.");
+        setItems(dummyItems);
         console.error(e);
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, [keywords]);
 
-  if (loading) return <p>جاري التحميل...</p>;
-  if (error) return <p>{error}</p>;
-  if (items.length === 0) return <p>لا توجد نتائج.</p>;
-
   return (
-    <div>
-      <h1>المنتجات</h1>
-      <div>
+    <div style={{ background: "#f9fafb", minHeight: "100vh", padding: "2rem" }}>
+      <h1 style={{ fontSize: "2rem", fontWeight: "bold", color: "#1e293b", marginBottom: "1.5rem" }}>
+        سوق أوتو دروب الإسلامي
+      </h1>
+      <button
+        onClick={fetchProducts}
+        style={{ marginBottom: "1.5rem", padding: "0.7rem 1.5rem", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "bold", fontSize: "1rem", cursor: "pointer" }}
+        disabled={loading}
+      >
+        {loading ? "جاري التحميل..." : "جلب المنتجات من المصدر الحقيقي"}
+      </button>
+      {error && <p style={{ color: "#ef4444", fontWeight: "bold" }}>{error}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1.5rem" }}>
         {items.map((item) => (
-          <div key={item.id}>
-            <h2>{item.title}</h2>
-            <p>{item.price}</p>
-            <a href={item.url} target="_blank" rel="noopener noreferrer">
+          <div key={item.id} style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 2px 8px #0001", padding: "1rem", textAlign: "center" }}>
+            <img src={item.image} alt={item.title} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px" }} />
+            <h2 style={{ fontSize: "1.1rem", fontWeight: "bold", margin: "0.5rem 0" }}>{item.title}</h2>
+            <p style={{ color: "#059669", fontWeight: "bold" }}>{item.price}</p>
+            <p style={{ color: "#64748b", fontSize: "0.95rem" }}>{item.seller}</p>
+            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: "0.5rem", padding: "0.5rem 1rem", background: "#0ea5e9", color: "#fff", borderRadius: "6px", textDecoration: "none" }}>
               عرض المنتج
             </a>
-            <img src={item.image} alt={item.title} />
           </div>
         ))}
       </div>
