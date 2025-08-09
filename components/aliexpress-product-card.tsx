@@ -57,7 +57,7 @@ export default function AliExpressProductCard({ product }: AliExpressProductCard
             </div>
             <div className="text-xs text-muted-foreground">{formatOrders(product.orders)}</div>
             <div className="text-xs text-muted-foreground truncate">
-              Seller: {product.seller.name} ({product.seller.rating.toFixed(1)}★)
+              Seller: {product.seller?.name ?? "Unknown"} ({product.seller?.rating?.toFixed(1) ?? "N/A"}★)
             </div>
           </div>
         </CardContent>
