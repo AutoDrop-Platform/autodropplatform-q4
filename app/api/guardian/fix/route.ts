@@ -22,6 +22,17 @@ const openai = new OpenAI({
  *   "raw": any // الرد الخام من OpenAI (للدبتج فقط)
  * }
  */
+/**
+ * معالجة طلب POST لتصحيح كود برمجي باستخدام OpenAI.
+ *
+ * @param req - طلب Next.js يحتوي على JSON فيه الكود والهدف والاسم (اختياري).
+ * @returns JSON يحتوي على الكود المصحح، ملاحظات بالإنجليزية، ملاحظات بالعربية، والرد الخام من OpenAI.
+ *
+ * @remarks
+ * - يجب تمرير مفتاح OpenAI في البيئة.
+ * - إذا لم يكن الكود موجودًا أو ليس نصًا، يرجع خطأ 400.
+ * - إذا فشل التصحيح أو حدث خطأ، يرجع خطأ 500 مع تفاصيل الخطأ.
+ */
 export async function POST(req: NextRequest) {
   try {
     const { code, filename, goal } = await req.json();
@@ -33,9 +44,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // <<< بدّل هذا بالـ Prompt ID اللي ظهر لك في OpenAI >>>
+
+    // تحقق من ضبط الـ Prompt ID بشكل صحيح
     const PROMPT_ID = "pmpt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // <-- عدّل هنا
     const PROMPT_VERSION = "1";
+    if (PROMPT_ID === "pmpt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") {
+      return NextResponse.json(
+        { error: "لم يتم ضبط Prompt ID الخاص بـ OpenAI. يرجى تعديله في الكود قبل البناء." },
+        { status: 500 }
+      );
+    }
 
     // نطلب من البوت يرجّع لنا JSON منظّم
     const userPayload = {
@@ -67,9 +85,9 @@ export async function POST(req: NextRequest) {
         {
           role: "user",
           content: [
-            { type: "text", text: JSON.stringify(userPayload) },
+            { type: "input_text", text: JSON.stringify(userPayload) },
           ],
-        },
+        }
       ],
     });
 

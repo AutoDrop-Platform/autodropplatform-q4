@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-07-30.basil",
 })
 
 export async function POST(req: Request) {
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         console.log("Products in order:", products)
 
         // Placeholder for sending order confirmation email
-        await sendOrderConfirmationEmail(session.customer_details?.email, session.id, products)
+        await sendOrderConfirmationEmail(session.customer_details?.email ?? undefined, session.id, products)
 
         console.log(`Order ${session.id} saved to database.`)
       } catch (dbError) {

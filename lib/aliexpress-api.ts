@@ -8,7 +8,7 @@ const instance = axios.create({
   },
 });
 
-const aliexpressAPI = {
+export const aliexpressAPI = {
   getProductDetails: async (productId: string) => {
     try {
       const response = await instance.get('/product/details', {
@@ -31,5 +31,3 @@ const aliexpressAPI = {
     }
   }
 };
-
-export default aliexpressAPI;

@@ -7,10 +7,10 @@ import Link from "next/link"
 import { useCart } from "@/context/cart-context"
 
 export default function CheckoutCancelPage() {
-  const { items, getTotalPrice } = useCart()
+  const { items = [], getTotalPrice = () => 0 } = useCart()
   const totalPrice = getTotalPrice()
   const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  const itemCount = items.reduce((sum: any, item: any) => sum + item.quantity, 0)
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">

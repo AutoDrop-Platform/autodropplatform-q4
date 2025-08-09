@@ -4,12 +4,12 @@ import { useCart } from "@/context/cart-context";
 import { Button } from "@/components/ui/button";
 
 export default function CartPage() {
-  const { items, removeFromCart, updateQty, totalCents, clearCart } = useCart();
+  const { items = [], removeFromCart, updateQty, totalCents, clearCart } = useCart();
 
   const checkout = async () => {
     if (!items.length) return;
     const payload = {
-      items: items.map((x) => ({
+  items: items.map((x: any) => ({
         name: x.name,
         image: x.image,
         amount: x.priceCents,
@@ -34,7 +34,7 @@ export default function CartPage() {
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Your Cart</h1>
 
       <div className="space-y-4">
-        {items.map((x) => (
+  {items.map((x: any) => (
           <div key={x.id} className="border rounded p-4 flex items-center gap-4">
             <img
               src={x.image || "/placeholder.png"}

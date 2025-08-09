@@ -14,7 +14,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function CheckoutPage() {
-  const { items, updateQuantity, removeFromCart, getTotalPrice } = useCart();
+  const { items = [], updateQuantity = () => {}, removeFromCart = () => {}, getTotalPrice = () => 0 } = useCart()
   const [customerInfo, setCustomerInfo] = useState({
     email: "",
     firstName: "",
@@ -24,7 +24,15 @@ export default function CheckoutPage() {
 
   const totalPrice = getTotalPrice();
   const charityDonation = Math.round(totalPrice * 0.25 * 100) / 100;
-  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  type CartItem = {
+    id: string | number;
+    quantity: number;
+    price: number;
+    title: string;
+    image?: string;
+    category?: string;
+  };
+  const itemCount = items.reduce((sum: number, item: CartItem) => sum + item.quantity, 0);
 
   if (items.length === 0) {
     return (
@@ -68,7 +76,7 @@ export default function CheckoutPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {items.map((item) => (
+                {items.map((item: CartItem) => (
                   <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
                     <div className="relative w-16 h-16 flex-shrink-0">
                       <Image

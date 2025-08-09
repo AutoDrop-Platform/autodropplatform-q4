@@ -91,4 +91,42 @@ async function fetchAllKeywords(keys: string[], batchSize = 4, delayMs = 600) {
 }
 
 export default function ProductsPage() {
-  const [items, setItems] = useState<Item
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const keywords = useMemo(() => KEYWORDS.join(","), []);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchAllKeywords(KEYWORDS)
+      .then(setItems)
+      .catch((e) => {
+        setError("فشل في تحميل البيانات");
+        console.error(e);
+      })
+      .finally(() => setLoading(false));
+  }, [keywords]);
+
+  if (loading) return <p>جاري التحميل...</p>;
+  if (error) return <p>{error}</p>;
+  if (items.length === 0) return <p>لا توجد نتائج.</p>;
+
+  return (
+    <div>
+      <h1>المنتجات</h1>
+      <div>
+        {items.map((item) => (
+          <div key={item.id}>
+            <h2>{item.title}</h2>
+            <p>{item.price}</p>
+            <a href={item.url} target="_blank" rel="noopener noreferrer">
+              عرض المنتج
+            </a>
+            <img src={item.image} alt={item.title} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
