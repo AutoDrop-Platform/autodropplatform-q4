@@ -9,7 +9,7 @@ const instance = axios.create({
 });
 
 export const aliexpressAPI = {
-  getProductDetails: async (productId) => {
+  getProductDetails: async (productId: string) => {
     try {
       const response = await instance.get('/product/details', {
         params: { productId }
