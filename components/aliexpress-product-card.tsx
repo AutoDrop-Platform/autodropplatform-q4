@@ -52,10 +52,10 @@ export default function AliExpressProductCard({ product }: AliExpressProductCard
               <span className="text-lg font-bold text-primary">${product.price.toFixed(2)}</span>
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-sm text-muted-foreground">{product.rating.toFixed(1)}</span>
+                <span className="text-sm text-muted-foreground">{product.rating?.toFixed(1) ?? "N/A"}</span>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground">{formatOrders(product.orders)}</div>
+            <div className="text-xs text-muted-foreground">{formatOrders(product.orders ?? 0)}</div>
             <div className="text-xs text-muted-foreground truncate">
               Seller: {product.seller?.name ?? "Unknown"} ({product.seller?.rating?.toFixed(1) ?? "N/A"}★)
             </div>
