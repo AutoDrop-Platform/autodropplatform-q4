@@ -1,155 +1,104 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { stripe, CHARITY_ORGANIZATIONS } from "@/lib/stripe"
-import { calculateCharityDonation, createIslamicProductMetadata } from "@/lib/stripe-client"
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
-export async function POST(request: NextRequest) {
-  try {
-    const { items, customerEmail, shippingAddress } = await request.json()
+export const runtime = "nodejs";
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "No items provided" }, { status: 400 })
+const stripeKey = process.env.STRIPE_SECRET_KEY ?? "";
+const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
+
+type BodyItem = {
+  name: string;
+  image?: string;
+  amount: number;
+  quantity?: number;
+};
+
+type Payload =
+  | {
+      items: BodyItem[];
+      currency?: string;
     }
+  | {
+      name?: string;
+      image?: string;
+      amount?: number;
+      quantity?: number;
+      currency?: string;
+    };
 
-    // Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0)
-    const charityDonation = calculateCharityDonation(subtotal)
-    const total = subtotal
-
-    // Create line items for Stripe
-    const lineItems = items.map((item: any) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.title,
-          description: `${item.description} | 25% donated to charity`,
-          images: [item.image || `${process.env.NEXT_PUBLIC_SITE_URL}/placeholder.svg`],
-          metadata: createIslamicProductMetadata(item),
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }))
-
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/cancel`,
-
-      // Customer information
-      customer_email: customerEmail,
-
-      // Shipping configuration
-      shipping_address_collection: {
-        allowed_countries: [
-          "US",
-          "CA",
-          "GB",
-          "AU",
-          "DE",
-          "FR",
-          "IT",
-          "ES",
-          "NL",
-          "BE",
-          "AE",
-          "SA",
-          "QA",
-          "KW",
-          "BH",
-          "OM",
-          "JO",
-          "LB",
-          "EG",
-          "MA",
-          "TR",
-          "ID",
-          "MY",
-          "SG",
-          "PK",
-          "BD",
-          "IN",
-        ],
-      },
-
-      // Metadata for Islamic marketplace
-      metadata: {
-        platform: "autodrop_islamic_marketplace",
-        charity_organization: CHARITY_ORGANIZATIONS.BALSAMAT_AL_KHAIR.name,
-        charity_donation_amount: charityDonation.toString(),
-        charity_percentage: "25",
-        product_categories: items.map((item: any) => item.category).join(","),
-        total_items: items.length.toString(),
-        subtotal: subtotal.toString(),
-        is_islamic_products: "true",
-      },
-
-      // Payment intent data
-      payment_intent_data: {
-        metadata: {
-          charity_donation: charityDonation.toString(),
-          islamic_marketplace: "true",
-        },
-      },
-
-      // Custom fields for Islamic marketplace
-      custom_fields: [
-        {
-          key: "charity_acknowledgment",
-          label: {
-            type: "custom",
-            custom: "Charity Donation Acknowledgment",
-          },
-          type: "dropdown",
-          dropdown: {
-            options: [
-              {
-                label: `Yes, donate 25% (${formatCurrency(charityDonation)}) to ${CHARITY_ORGANIZATIONS.BALSAMAT_AL_KHAIR.name}`,
-                value: "yes_donate",
-              },
-            ],
-          },
-          optional: false,
-        },
-      ],
-
-      // Automatic tax calculation
-      automatic_tax: {
-        enabled: true,
-      },
-
-      // Invoice creation
-      invoice_creation: {
-        enabled: true,
-        invoice_data: {
-          description: `Islamic Marketplace Purchase - AutoDrop Platform`,
-          metadata: {
-            charity_donation: charityDonation.toString(),
-            platform: "autodrop_islamic_marketplace",
-          },
-          footer: `Thank you for your purchase! 25% (${formatCurrency(charityDonation)}) of your order will be donated to ${CHARITY_ORGANIZATIONS.BALSAMAT_AL_KHAIR.name}.`,
-        },
-      },
-    })
-
-    return NextResponse.json({
-      success: true,
-      sessionId: session.id,
-      url: session.url,
-      charityDonation,
-      total,
-    })
-  } catch (error) {
-    console.error("Stripe checkout error:", error)
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 })
-  }
+function sanitizeAmount(x: unknown): number {
+  const n = typeof x === "number" ? Math.round(x) : 0;
+  return n >= 50 ? n : 50;
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount)
+export async function POST(req: Request) {
+  try {
+    if (!stripeKey) {
+      return NextResponse.json(
+        { error: "Stripe key missing" },
+        { status: 500 }
+      );
+    }
+
+    const payload = (await req.json()) as Payload;
+    const currency = payload.currency ?? "usd";
+
+    let items: BodyItem[] = [];
+
+    if ("items" in payload && Array.isArray(payload.items)) {
+      items = payload.items
+        .map((it) => ({
+          name: it.name?.trim() || "Product",
+          image: it.image,
+          amount: sanitizeAmount(it.amount),
+          quantity: it.quantity && it.quantity > 0 ? Math.floor(it.quantity) : 1,
+        }))
+        .filter((it) => Number.isFinite(it.amount) && it.amount >= 50);
+    } else {
+      items = [
+        {
+          name: payload.name?.trim() || "Product",
+          image: payload.image,
+          amount: sanitizeAmount(payload.amount),
+          quantity:
+            payload.quantity && payload.quantity > 0
+              ? Math.floor(payload.quantity)
+              : 1,
+        },
+      ];
+    }
+
+    if (!items.length) {
+      return NextResponse.json({ error: "No items provided" }, { status: 400 });
+    }
+
+    const line_items = items.map((x) => ({
+      price_data: {
+        currency,
+        product_data: {
+          name: x.name,
+          images: x.image ? [x.image] : [],
+        },
+        unit_amount: x.amount,
+      },
+      quantity: x.quantity ?? 1,
+    }));
+
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://autodropplatform.shop";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items,
+      success_url: `${baseUrl}/checkout/success`,
+      cancel_url: `${baseUrl}/checkout/cancel`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Checkout failed (unknown error)";
+    console.error("Checkout error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
