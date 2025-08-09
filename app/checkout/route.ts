@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-export const runtime = "nodejs"; // تأكيد بيئة Node (Stripe لا يعمل على Edge)
+export const runtime = "nodejs";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY ?? "";
 const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
-// أنواع واضحة
 type BodyItem = {
   name: string;
   image?: string;
-  amount: number;    // بالسنت
-  quantity?: number; // افتراضي 1
+  amount: number;
+  quantity?: number;
 };
 
 type Payload =
@@ -27,7 +26,6 @@ type Payload =
       currency?: string;
     };
 
-// توحيد القيمة لتكون سنتات صحيحة وبحد أدنى 50
 function sanitizeAmount(x: unknown): number {
   const n = typeof x === "number" ? Math.round(x) : 0;
   return n >= 50 ? n : 50;
@@ -43,12 +41,12 @@ export async function POST(req: Request) {
     }
 
     const payload = (await req.json()) as Payload;
-    const currency = (payload as any).currency ?? "usd";
+    const currency = payload.currency ?? "usd";
 
-    // تجهيز العناصر: يدعم single item أو items[]
     let items: BodyItem[] = [];
-    if (Array.isArray((payload as any).items)) {
-      items = ((payload as any).items as BodyItem[])
+
+    if ("items" in payload && Array.isArray(payload.items)) {
+      items = payload.items
         .map((it) => ({
           name: it.name?.trim() || "Product",
           image: it.image,
@@ -59,12 +57,12 @@ export async function POST(req: Request) {
     } else {
       items = [
         {
-          name: (payload as any).name?.trim() || "Product",
-          image: (payload as any).image,
-          amount: sanitizeAmount((payload as any).amount),
+          name: payload.name?.trim() || "Product",
+          image: payload.image,
+          amount: sanitizeAmount(payload.amount),
           quantity:
-            (payload as any).quantity && (payload as any).quantity > 0
-              ? Math.floor((payload as any).quantity)
+            payload.quantity && payload.quantity > 0
+              ? Math.floor(payload.quantity)
               : 1,
         },
       ];
@@ -81,7 +79,7 @@ export async function POST(req: Request) {
           name: x.name,
           images: x.image ? [x.image] : [],
         },
-        unit_amount: x.amount, // بالسنت
+        unit_amount: x.amount,
       },
       quantity: x.quantity ?? 1,
     }));
@@ -91,12 +89,9 @@ export async function POST(req: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      // لا حاجة لتحديد payment_method_types مع الإصدارات الحديثة
       line_items,
       success_url: `${baseUrl}/checkout/success`,
       cancel_url: `${baseUrl}/checkout/cancel`,
-      // لو بتستخدم Stripe Tax لاحقًا:
-      // automatic_tax: { enabled: true },
     });
 
     return NextResponse.json({ url: session.url });
