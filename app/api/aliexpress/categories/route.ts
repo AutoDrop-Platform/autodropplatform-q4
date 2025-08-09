@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { aliexpressAPI } from "@/lib/aliexpress-api";
+import aliexpressAPI from "@/lib/aliexpress-api";
 
 export async function GET(request: NextRequest) {
   try {
